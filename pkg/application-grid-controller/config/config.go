@@ -37,6 +37,7 @@ type ControllerConfig struct {
 	DeploymentInformer      appsv1.DeploymentInformer
 	StatefulSetInformer     appsv1.StatefulSetInformer
 	NodeInformer            corev1.NodeInformer
+	NameSpaceInformer       corev1.NamespaceInformer
 }
 
 func NewControllerConfig(crdClient *crdClientset.Clientset, k8sClient *kubernetes.Clientset, resyncTime time.Duration) *ControllerConfig {
@@ -51,6 +52,7 @@ func NewControllerConfig(crdClient *crdClientset.Clientset, k8sClient *kubernete
 		DeploymentInformer:      k8sFactory.Apps().V1().Deployments(),
 		StatefulSetInformer:     k8sFactory.Apps().V1().StatefulSets(),
 		NodeInformer:            k8sFactory.Core().V1().Nodes(),
+		NameSpaceInformer:       k8sFactory.Core().V1().Namespaces(),
 	}
 }
 
@@ -62,4 +64,5 @@ func (c *ControllerConfig) Run(stop <-chan struct{}) {
 	go c.DeploymentInformer.Informer().Run(stop)
 	go c.StatefulSetInformer.Informer().Run(stop)
 	go c.NodeInformer.Informer().Run(stop)
+	go c.NameSpaceInformer.Informer().Run(stop)
 }

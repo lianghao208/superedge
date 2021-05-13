@@ -23,6 +23,7 @@ import (
 	"github.com/superedge/superedge/pkg/application-grid-controller/controller/common"
 	"github.com/superedge/superedge/pkg/application-grid-controller/controller/deployment/util"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
+	"k8s.io/apimachinery/pkg/selection"
 	"time"
 
 	"k8s.io/klog"
@@ -53,13 +54,16 @@ import (
 )
 
 type DeploymentGridController struct {
-	dpClient           controller.DeployClientInterface
-	dpGridLister       crdv1listers.DeploymentGridLister
-	dpLister           appslisters.DeploymentLister
-	nodeLister         corelisters.NodeLister
-	dpGridListerSynced cache.InformerSynced
-	dpListerSynced     cache.InformerSynced
-	nodeListerSynced   cache.InformerSynced
+	dpClient        controller.DeployClientInterface
+	dpGridLister    crdv1listers.DeploymentGridLister
+	dpLister        appslisters.DeploymentLister
+	nodeLister      corelisters.NodeLister
+	nameSpaceLister corelisters.NamespaceLister
+
+	dpGridListerSynced    cache.InformerSynced
+	dpListerSynced        cache.InformerSynced
+	nodeListerSynced      cache.InformerSynced
+	nameSpaceListerSynced cache.InformerSynced
 
 	eventRecorder record.EventRecorder
 	queue         workqueue.RateLimitingInterface
@@ -75,7 +79,7 @@ type DeploymentGridController struct {
 }
 
 func NewDeploymentGridController(dpGridInformer crdinformers.DeploymentGridInformer, dpInformer appsinformers.DeploymentInformer,
-	nodeInformer coreinformers.NodeInformer, kubeClient clientset.Interface, crdClient crdclientset.Interface) *DeploymentGridController {
+	nodeInformer coreinformers.NodeInformer, namespaceInformer coreinformers.NamespaceInformer, kubeClient clientset.Interface, crdClient crdclientset.Interface) *DeploymentGridController {
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartLogging(klog.Infof)
 	eventBroadcaster.StartRecordingToSink(&v1.EventSinkImpl{
@@ -111,6 +115,10 @@ func NewDeploymentGridController(dpGridInformer crdinformers.DeploymentGridInfor
 		DeleteFunc: dgc.deleteNode,
 	})
 
+	namespaceInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: dgc.addNameSpace,
+	})
+
 	dgc.syncHandler = dgc.syncDeploymentGrid
 	dgc.enqueueDeploymentGrid = dgc.enqueue
 
@@ -122,6 +130,9 @@ func NewDeploymentGridController(dpGridInformer crdinformers.DeploymentGridInfor
 
 	dgc.nodeLister = nodeInformer.Lister()
 	dgc.nodeListerSynced = nodeInformer.Informer().HasSynced
+
+	dgc.nameSpaceLister = namespaceInformer.Lister()
+	dgc.nameSpaceListerSynced = namespaceInformer.Informer().HasSynced
 
 	dgc.templateHasher = util.NewDeploymentTemplateHash()
 
@@ -248,7 +259,16 @@ func (dgc *DeploymentGridController) syncDeploymentGrid(key string) error {
 	}
 
 	// sync deployment grid status and its relevant deployments workload
-	return dgc.reconcile(dg, dpList, gridValues)
+	if err := dgc.reconcile(dg, dpList, gridValues); err != nil {
+		return err
+	}
+
+	disdgList, nsList, err := dgc.getDisDeploymentGridAndNameSpace(dg)
+	if err != nil {
+		return err
+	}
+
+	return dgc.reconcileFed(dg, disdgList, nsList)
 }
 
 func (dgc *DeploymentGridController) getDeploymentForGrid(dg *crdv1.DeploymentGrid) ([]*appsv1.Deployment, error) {
@@ -321,4 +341,37 @@ func (dgc *DeploymentGridController) enqueue(deploymentGrid *crdv1.DeploymentGri
 	}
 
 	dgc.queue.Add(key)
+}
+
+func (dgc *DeploymentGridController) getDisDeploymentGridAndNameSpace(dg *crdv1.DeploymentGrid) ([]*crdv1.DeploymentGrid, []string, error) {
+	var nsList []string
+	var disDgList []*crdv1.DeploymentGrid
+	labelSelector := labels.NewSelector()
+	NameSpaceRequirement, err := labels.NewRequirement(common.FedManagedClustIdKey, selection.Exists, []string{})
+	if err != nil {
+		klog.V(4).Infof("GetDisDeploymentGridAndNameSpace error: gererate requirement err %v", err)
+		return []*crdv1.DeploymentGrid{}, []string{}, err
+	}
+	labelSelector = labelSelector.Add(*NameSpaceRequirement)
+
+	nameSpaceList, err := dgc.nameSpaceLister.List(labelSelector)
+	if err != nil {
+		klog.V(4).Infof("GetDisDeploymentGridAndNameSpace error: get nameSpaceList err %v", err)
+		return []*crdv1.DeploymentGrid{}, []string{}, err
+	}
+
+	for _, ns := range nameSpaceList {
+		nsList = append(nsList, ns.Name)
+	}
+
+	for _, ns := range nsList {
+		disDg, err := dgc.dpGridLister.DeploymentGrids(ns).Get(dg.Name)
+		if err != nil {
+			klog.V(4).Infof("GetDisDeploymentGridAndNameSpace error: get disdgList err %v", err)
+			return []*crdv1.DeploymentGrid{}, []string{}, err
+		}
+		disDgList = append(disDgList, disDg)
+	}
+
+	return disDgList, nsList, nil
 }

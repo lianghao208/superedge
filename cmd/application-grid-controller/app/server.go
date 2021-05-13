@@ -163,7 +163,7 @@ func runController(parent context.Context,
 	controllerConfig := config.NewControllerConfig(crdClient, kubeClient, time.Second*time.Duration(syncPeriod))
 	deploymentGridController := deployment.NewDeploymentGridController(
 		controllerConfig.DeploymentGridInformer, controllerConfig.DeploymentInformer, controllerConfig.NodeInformer,
-		kubeClient, crdClient)
+		controllerConfig.NameSpaceInformer, kubeClient, crdClient)
 	statefulSetGridController := statefulset.NewStatefulSetGridController(
 		controllerConfig.StatefulSetGridInformer, controllerConfig.StatefulSetInformer, controllerConfig.NodeInformer,
 		kubeClient, crdClient)

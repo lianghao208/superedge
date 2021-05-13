@@ -186,3 +186,143 @@ func (dgc *DeploymentGridController) syncDeployment(adds, updates, deletes []*ap
 
 	return err
 }
+
+func (dgc *DeploymentGridController) reconcileFed(dg *crdv1.DeploymentGrid, dgList []*crdv1.DeploymentGrid, disNsList []string) error {
+	existedDisDgMap := make(map[string]*crdv1.DeploymentGrid)
+
+	for _, dg := range dgList {
+		existedDisDgMap[dg.Namespace] = dg
+	}
+
+	wanted := sets.NewString()
+	for _, v := range disNsList {
+		wanted.Insert(v)
+	}
+
+	var (
+		adds    []*crdv1.DeploymentGrid
+		updates []*crdv1.DeploymentGrid
+		deletes []*crdv1.DeploymentGrid
+	)
+
+	for _, ns := range disNsList {
+		dg, found := existedDisDgMap[ns]
+		if !found {
+			DeploymentGridToAdd := util.CreateDeploymentGrid(dg, ns)
+			adds = append(adds, DeploymentGridToAdd)
+			continue
+		}
+
+		DeploymentGridToUpdate := util.CreateDeploymentGrid(dg, ns)
+
+		scheme := scheme.Scheme
+		scheme.Default(DeploymentGridToUpdate)
+		if !commonutil.DeepContains(existedDisDgMap[ns].Spec, DeploymentGridToUpdate.Spec) {
+			klog.Infof("deployment %s template changed", dg.Name)
+			out, _ := json.Marshal(DeploymentGridToUpdate.Spec)
+			klog.V(5).Infof("deploymentGridToUpdate is %s", string(out))
+			out, _ = json.Marshal(existedDisDgMap[ns].Spec)
+			klog.V(5).Infof("existedDeploymentGrid is %s", string(out))
+			updates = append(updates, DeploymentGridToUpdate)
+			continue
+		}
+	}
+
+	// If deployment's name is not matched with grid value but has the same selector, we remove it.
+	for _, dg := range dgList {
+		if !wanted.Has(dg.Namespace) {
+			deletes = append(deletes, dg)
+		}
+	}
+
+	if err := dgc.syncDisDeployment(adds, updates, deletes); err != nil {
+		return err
+	}
+
+	return dgc.syncDisStatus(dg, dgList, disNsList)
+}
+
+func (dgc *DeploymentGridController) syncDisDeployment(adds, updates, deletes []*crdv1.DeploymentGrid) error {
+	wg := sync.WaitGroup{}
+	totalSize := len(adds) + len(updates) + len(deletes)
+	wg.Add(totalSize)
+	errCh := make(chan error, totalSize)
+
+	for i := range adds {
+		go func(d *crdv1.DeploymentGrid) {
+			defer wg.Done()
+			klog.V(4).Infof("Creating DisDeploymentGrid %s/%s by syncDisDeployment", d.Namespace, d.Name)
+			_, err := dgc.crdClient.SuperedgeV1().DeploymentGrids(d.Namespace).Create(context.TODO(), d, metav1.CreateOptions{})
+			if err != nil {
+				errCh <- err
+			}
+		}(adds[i])
+	}
+
+	for i := range updates {
+		go func(d *crdv1.DeploymentGrid) {
+			defer wg.Done()
+			klog.V(4).Infof("Updating DisDeploymentGrid %s/%s by syncDisDeployment", d.Namespace, d.Name)
+			_, err := dgc.crdClient.SuperedgeV1().DeploymentGrids(d.Namespace).Update(context.TODO(), d, metav1.UpdateOptions{})
+			if err != nil {
+				errCh <- err
+			}
+		}(updates[i])
+	}
+
+	for i := range deletes {
+		go func(d *crdv1.DeploymentGrid) {
+			defer wg.Done()
+			klog.V(4).Infof("Deleting DisDeploymentGrid %s/%s by syncDisDeployment", d.Namespace, d.Name)
+			err := dgc.crdClient.SuperedgeV1().DeploymentGrids(d.Namespace).Delete(context.TODO(), d.Name, metav1.DeleteOptions{})
+			if err != nil {
+				errCh <- err
+			}
+		}(deletes[i])
+	}
+
+	wg.Wait()
+
+	var err error
+	for len(errCh) != 0 {
+		select {
+		case e := <-errCh:
+			if !errors.IsConflict(e) {
+				err = multierror.Append(err, e)
+			}
+		default:
+		}
+	}
+
+	return err
+}
+
+func (dgc *DeploymentGridController) syncDisStatus(dg *crdv1.DeploymentGrid, dgList []*crdv1.DeploymentGrid, disNsList []string) error {
+	wanted := sets.NewString()
+	for _, v := range disNsList {
+		wanted.Insert(v)
+	}
+
+	states := make(map[string]appsv1.DeploymentStatus)
+	for _, dg := range dgList {
+		if wanted.Has(dg.Namespace) {
+			for k, v := range dg.Status.States {
+				states[k] = v
+			}
+		}
+	}
+	if !apiequality.Semantic.DeepEqual(dg.Status.States, states) {
+		// NEVER modify objects from the store. It's a read-only, local cache.
+		// You can use DeepCopy() to make a deep copy of original object and modify this copy
+		// Or create a copy manually for better performance
+		dgCopy := dg.DeepCopy()
+		dgCopy.Status.States = states
+		klog.V(4).Infof("Updating deployment grid %s/%s status %#v", dgCopy.Namespace, dgCopy.Name, states)
+		_, err := dgc.crdClient.SuperedgeV1().DeploymentGrids(dgCopy.Namespace).UpdateStatus(context.TODO(), dgCopy, metav1.UpdateOptions{})
+		if err != nil && errors.IsConflict(err) {
+			return nil
+		}
+		return err
+	}
+	return nil
+}
