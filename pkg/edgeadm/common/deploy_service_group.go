@@ -34,25 +34,21 @@ import (
 )
 
 func DeployServiceGroup(clientSet kubernetes.Interface, manifestsDir string) error {
-	advertiseAddress, err := GetKubeAPIServerAddr(clientSet)
+	gridWrapper, gridController, option, err := getServiceGroupResource(clientSet, manifestsDir)
 	if err != nil {
-		klog.Errorf("Get Kube-api-server add and port, error: %v", err)
 		return err
 	}
 
-	option := map[string]interface{}{
-		"AdvertiseAddress": advertiseAddress,
-	}
 	userGridWrapper := filepath.Join(manifestsDir, manifests.APP_APPLICATION_GRID_WRAPPER)
-	gridWrapper := ReadYaml(userGridWrapper, manifests.ApplicationGridWrapperYaml)
+	gridWrapper = ReadYaml(userGridWrapper, manifests.ApplicationGridWrapperYaml)
 	if err := kubeclient.CreateResourceWithFile(clientSet, gridWrapper, option); err != nil {
 		return err
 	}
 	klog.V(4).Infof("Deploy %s success!", manifests.APP_APPLICATION_GRID_WRAPPER)
 
 	userGridController := filepath.Join(manifestsDir, manifests.APP_APPLICATION_GRID_CONTROLLER)
-	gridController := ReadYaml(userGridController, manifests.ApplicationGridControllerYaml)
-	if err := CreateByYamlFile(clientSet, gridController); err != nil {
+	gridController = ReadYaml(userGridController, manifests.ApplicationGridControllerYaml)
+	if err := kubeclient.CreateResourceWithFile(clientSet, gridController, option); err != nil {
 		klog.Errorf("Deploy %s error: %s", manifests.APP_APPLICATION_GRID_CONTROLLER, err)
 		return err
 	}
@@ -62,10 +58,31 @@ func DeployServiceGroup(clientSet kubernetes.Interface, manifestsDir string) err
 	return nil
 }
 
+func DeleteServiceGroup(clientSet kubernetes.Interface, manifestsDir string) error {
+	gridWrapper, gridController, option, err := getServiceGroupResource(clientSet, manifestsDir)
+	if err != nil {
+		return err
+	}
+
+	if err := kubeclient.DeleteResourceWithFile(clientSet, gridWrapper, option); err != nil {
+		return err
+	}
+	klog.V(4).Infof("Delete %s success!", manifests.APP_APPLICATION_GRID_WRAPPER)
+
+	if err := DeleteByYamlFile(clientSet, gridController); err != nil {
+		klog.Errorf("Delete %s error: %s", manifests.APP_APPLICATION_GRID_CONTROLLER, err)
+		return err
+	}
+
+	klog.V(4).Infof("Delete %s success!", manifests.APP_APPLICATION_GRID_CONTROLLER)
+
+	return nil
+}
+
 func GetKubeAPIServerAddr(clientSet kubernetes.Interface) (string, error) {
 	kubeClient := clientSet
 	kubeProxyCM, err := kubeClient.CoreV1().ConfigMaps(
-		constant.NamespcaeKubeSystem).Get(context.TODO(), "kube-proxy", metav1.GetOptions{})
+		constant.NamespaceKubeSystem).Get(context.TODO(), "kube-proxy", metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -89,4 +106,23 @@ func GetKubeAPIServerAddr(clientSet kubernetes.Interface) (string, error) {
 		}
 	}
 	return "", errors.New("Get kube-api server addr nil\n")
+}
+
+func getServiceGroupResource(clientSet kubernetes.Interface, manifestsDir string) (string, string, interface{}, error) {
+	advertiseAddress, err := GetKubeAPIServerAddr(clientSet)
+	if err != nil {
+		klog.Errorf("Get Kube-api-server add and port, error: %v", err)
+		return "", "", nil, err
+	}
+
+	option := map[string]interface{}{
+		"Namespace":        constant.NamespaceEdgeSystem,
+		"AdvertiseAddress": advertiseAddress,
+	}
+	userGridWrapper := filepath.Join(manifestsDir, manifests.APP_APPLICATION_GRID_WRAPPER)
+	gridWrapper := ReadYaml(userGridWrapper, manifests.ApplicationGridWrapperYaml)
+
+	userGridController := filepath.Join(manifestsDir, manifests.APP_APPLICATION_GRID_CONTROLLER)
+	gridController := ReadYaml(userGridController, manifests.ApplicationGridControllerYaml)
+	return gridWrapper, gridController, option, err
 }
