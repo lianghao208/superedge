@@ -21,7 +21,7 @@ SuperEdge具有如下特性:
 - **边缘自治**：SuperEdge 提供 L3 级边缘自治能力，当边缘节点与云端网络连接不稳定或处于离线状态时，边缘节点可以自主工作，化解了网络不可靠所带来的不利影响
 - **分布式节点健康监测**：SuperEdge 是业内首个提供边缘侧健康监测能力的开源容器管理系统。SuperEdge 能在边缘侧持续守护进程，并收集节点的故障信息，实现更加快速和精准的问题发现与报告。此外，其分布式的设计还可以实现多区域、多范围的监测和管理
 - **内置边缘编排能力**：SuperEdge 能够自动部署多区域的微服务，方便管理运行于多个地区的微服务。同时，网格内闭环服务可以有效减少运行负载，提高系统的容错能力和可用性
-- **内网穿透**：SuperEdge 能够保证 Kubernetes 节点在有无公共网络的情况下都可以连续运行和维护，并且同时支持传输控制协议（TCP）、超文本传输协议（HTTP）和超文本传输安全协议（HTTPS）
+- **内网穿透**：SuperEdge 能够保证 Kubernetes 节点在有无公共网络的情况下都可以连续运行和维护，并且同时支持传输控制协议（TCP）、超文本传输协议（HTTP）、超文本传输安全协议（HTTPS）和SSH协议
 
 
 ## 体系架构
@@ -50,7 +50,7 @@ SuperEdge具有如下特性:
 -   下载安装包
 > 注意修改"arch=amd64"参数，目前支持[amd64, arm64], 下载自己机器对应的体系结构，其他参数不变
 ```shell
-arch=amd64 version=v0.3.0 && rm -rf edgeadm-linux-* && wget https://superedge-1253687700.cos.ap-guangzhou.myqcloud.com/$version/$arch/edgeadm-linux-$arch-$version.tgz && tar -xzvf edgeadm-linux-* && cd edgeadm-linux-$arch-$version && ./edgeadm
+arch=amd64 version=v0.4.0-beta.0 && rm -rf edgeadm-linux-* && wget https://superedge-1253687700.cos.ap-guangzhou.myqcloud.com/$version/$arch/edgeadm-linux-$arch-$version.tgz && tar -xzvf edgeadm-linux-* && cd edgeadm-linux-$arch-$version && ./edgeadm
 ```
 
 -   安装边缘 Kubernetes master 节点

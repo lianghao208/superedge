@@ -112,10 +112,14 @@ metadata:
   namespace: {{.Namespace}}
 spec:
   ports:
-    - name: proxycloud
+    - name: grpc
       port: 9000
       protocol: TCP
       targetPort: 9000
+    - name: ssh
+      port: 22
+      protocol: TCP
+      targetPort: 22
   selector:
     app: tunnel-cloud
   type: NodePort
@@ -140,7 +144,7 @@ spec:
       serviceAccountName: tunnel-cloud
       containers:
         - name: tunnel-cloud
-          image: superedge/tunnel:v0.3.0
+          image: superedge/tunnel:v0.4.0-beta.0
           imagePullPolicy: IfNotPresent
           livenessProbe:
             httpGet:

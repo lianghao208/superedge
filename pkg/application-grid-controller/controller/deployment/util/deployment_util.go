@@ -19,7 +19,7 @@ package util
 import (
 	"fmt"
 	"github.com/superedge/superedge/pkg/application-grid-controller/controller/common"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -79,6 +79,23 @@ func CreateDeployment(dg *crdv1.DeploymentGrid, gridValue string, dth Deployment
 	}
 
 	return dp, nil
+}
+
+func CreateDeploymentGrid(dg *crdv1.DeploymentGrid, nameSpace string) *crdv1.DeploymentGrid {
+	dgcopy := dg.DeepCopy()
+	dgcopy.ResourceVersion = ""
+	TargetNameSpace := dgcopy.Namespace
+	dgcopy.Namespace = nameSpace
+	dgcopy.Labels[common.FedTargetNameSpace] = TargetNameSpace
+	dgcopy.Labels[common.FedrationDisKey] = "yes"
+	dgcopy.OwnerReferences = []metav1.OwnerReference{*metav1.NewControllerRef(dg, ControllerKind)}
+	return dgcopy
+}
+
+func UpdateDeploymentGrid(dg, fed *crdv1.DeploymentGrid) *crdv1.DeploymentGrid {
+	dgcopy := fed.DeepCopy()
+	dgcopy.Spec = dg.Spec
+	return dgcopy
 }
 
 func KeepConsistence(dg *crdv1.DeploymentGrid, dp *appsv1.Deployment, gridValue string) *appsv1.Deployment {

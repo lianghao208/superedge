@@ -40,7 +40,9 @@ rules:
     - ""
     resources:
       - nodes
+      - secrets
       - services
+      - namespaces
     verbs:
       - "*"
   - apiGroups:
@@ -99,7 +101,7 @@ spec:
       serviceAccountName: application-grid-controller
       containers:
         - name: application-grid-controller
-          image: superedge/application-grid-controller:v0.3.0
+          image: superedge/application-grid-controller:v0.4.0-beta.0
           imagePullPolicy: IfNotPresent
           command:
             - /usr/local/bin/application-grid-controller

@@ -11,8 +11,11 @@ SuperEdge has the following characteristics:
 * **Kubernetes-native**: SuperEdge extends the powerful container orchestration and scheduling capabilities of Kubernetes to the edge. It makes nonintrusive enhancements to Kubernetes and is fully compatible with all Kubernetes APIs and resources. Kubernetes users can leverage SuperEdge easily for edge environments with minimal learning.
 * **Edge autonomy**: SuperEdge provides L3 edge autonomy. When the network connection between the edge and the cloud is unstable, or the edge node is offline, the node can still work independently. This eliminates the negative impact of unreliable network.
 * **Distributed node health monitoring**: SuperEdge provides edge-side health monitoring capabilities. SuperEdge can continue to monitor the processes on the edge side and collect health information for faster and more accurate problem discovery and reporting. In addition, its distributed design can provide multi-region monitoring and management.
-* **Built-in edge orchestration capability**: SuperEdge supports automatic deployment of multi-regional microservices. Edge-side services are closed-looped, and it effectively reduces the operational overhead and improves the fault tolerance and availability of the system.
-* **Network tunneling**: SuperEdge ensures that Kubernetes nodes can operate under different network situations. It supports network tunnelling using TCP, HTTP and HTTPS.
+* **Built-in edge orchestration capability**: SuperEdge supports automatic deployment of multi-regional microservices.
+  Edge-side services are closed-looped, and it effectively reduces the operational overhead and improves the fault
+  tolerance and availability of the system.
+* **Network tunneling**: SuperEdge ensures that Kubernetes nodes can operate under different network situations. It
+  supports network tunnelling using TCP, HTTP, HTTPS and SSH.
 
 SuperEdge was initiated by the following companies: Tencent, Intel, VMware, Huya, Cambricon, Captialonline and Meituan.
 
@@ -42,7 +45,7 @@ SuperEdge was initiated by the following companies: Tencent, Intel, VMware, Huya
 -   Download the installation package
 > Choose installation package according to your installation node CPU architecture [amd64, arm64]
 ```shell
-arch=amd64 version=v0.3.0 && rm -rf edgeadm-linux-* && wget https://superedge-1253687700.cos.ap-guangzhou.myqcloud.com/$version/$arch/edgeadm-linux-$arch-$version.tgz && tar -xzvf edgeadm-linux-* && cd edgeadm-linux-$arch-$version && ./edgeadm
+arch=amd64 version=v0.4.0-beta.0 && rm -rf edgeadm-linux-* && wget https://superedge-1253687700.cos.ap-guangzhou.myqcloud.com/$version/$arch/edgeadm-linux-$arch-$version.tgz && tar -xzvf edgeadm-linux-* && cd edgeadm-linux-$arch-$version && ./edgeadm
 ```
 
 -   Install edge Kubernetes master node

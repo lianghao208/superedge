@@ -124,12 +124,15 @@ This program has the following advantages:
 
     >   For other Kubernetes versions, please refer to **5. Customize the Kubernetes static installation package** and make it yourself.
 
+-   hostname of node should meet following requirements;
+    > not contain `localhost` and  not all numbers
+
 #### <2>. Download the edgeadm static installation package and copy it to all master && node nodes
 
 >   Choose installation package according to your installation node CPU architecture [amd64, arm64]
 
 ```shell
-arch=amd64 version=v0.3.0 && rm -rf edgeadm-linux-* && wget https://superedge-1253687700.cos.ap-guangzhou.myqcloud.com/$version/$arch/edgeadm-linux-$arch-$version.tgz && tar -xzvf edgeadm-linux-* && cd edgeadm-linux-$arch-$version && ./edgeadm
+arch=amd64 version=v0.4.0-beta.0 && rm -rf edgeadm-linux-* && wget https://superedge-1253687700.cos.ap-guangzhou.myqcloud.com/$version/$arch/edgeadm-linux-$arch-$version.tgz && tar -xzvf edgeadm-linux-* && cd edgeadm-linux-$arch-$version && ./edgeadm
 ```
 The installation package is about 200M. For detailed information about the installation package, please refer to **5. Custom Kubernetes static installation package**.
 
@@ -482,7 +485,7 @@ kube-linux-arm64-v1.18.2.tar.gz ## Kubernetes static installation package for ku
 │   ├── kubectl                 ## kubectl for kube-v1.18.2
 │   ├── kubelet                 ## kubelet for kube-v1.18.2
 │   └── lite-apiserver          ## The corresponding version of lite-apiserver
-├── cni                         ## cin configuration
+├── cni                         ## cni configuration
 │   └── cni-plugins-linux-v0.8.3.tar.gz ## CNI plug-in binary compression package of v0.8.3
 └── container                   ## Container runtime directory
     └── docker-19.03-linux-arm64.tar.gz ## Docker 19.03 arm64 system installation script and installation package
@@ -503,3 +506,6 @@ To customize the Kubernetes static installation package and other systems, three
 -   Make sure that the mirror warehouse used by init has the basic image of the Kubernetes version of the corresponding system. It is recommended to use [Multi-System Mirror](https://docs.docker.com/buildx/working-with-buildx/);
 -   Fully test to ensure that there are no compatibility issues. If there are related problems, you can also mention Issues in the SuperEdge community to fix them.
 
+#### <3>. Custom node initialization script
+
+`script/init-node.sh` is the initialization script of the node, but the system we tested is limited and cannot be fully compatible. If the default init-node.sh cannot initialize your node, or you need to add other initialization scripts, you can edit Use `script/init-node.sh` to customize the script and type out the kube-linux-arm64-v1.18.2.tar.gz package for your own use.
